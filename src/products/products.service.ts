@@ -5,29 +5,40 @@ import { Repository } from 'typeorm';
 import { Product } from './product.entity';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-
+import { DeepPartial } from 'typeorm';
 @Injectable()
 export class ProductsService {
   constructor(
     @InjectRepository(Product)
     private readonly repo: Repository<Product>,
   ) {}
+  async create(
+  createProductDto: CreateProductDto,
+  file?: Express.Multer.File,
+): Promise<Product> {
+  const productData: DeepPartial<Product> = {
+  name: createProductDto.name,
+  price: createProductDto.price,
+  stock: createProductDto.stock ?? 0,
+};
 
-  // ✅ Create product with optional image
-  async create(createProductDto: CreateProductDto, file?: Express.Multer.File) {
-    // 1. create entity from DTO only
-    const product = this.repo.create(createProductDto);
+if (createProductDto.description) {
+  productData.description = createProductDto.description;
+}
 
-    // 2. add image if provided
-    if (file) {
-      product.image = file.buffer;
-      product.imageName = file.originalname;
-      product.imageMime = file.mimetype;
-    }
+if (createProductDto.category) {
+  productData.category = createProductDto.category;
+}
 
-    return this.repo.save(product);
-  }
+if (file) {
+  productData.image = file.buffer;
+  productData.imageName = file.originalname;
+  productData.imageMime = file.mimetype;
+}
 
+const product = this.repo.create(productData);
+return await this.repo.save(product);
+}
   // ✅ Get all products
   async findAll(): Promise<Product[]> {
     return this.repo.find();

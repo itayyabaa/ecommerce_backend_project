@@ -11,6 +11,7 @@ import {
   UploadedFile,
   Res,
   NotFoundException,
+  ValidationPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
@@ -27,12 +28,11 @@ export class ProductsController {
   @Post()
   @UseInterceptors(FileInterceptor('image', { storage: memoryStorage() }))
   create(
-    @Body() createProductDto: CreateProductDto,
+    @Body(new ValidationPipe()) createProductDto: CreateProductDto,
     @UploadedFile() file?: Express.Multer.File,
   ) {
     return this.productsService.create(createProductDto, file);
   }
-
   // ✅ Get All Products
   @Get()
   findAll() {
