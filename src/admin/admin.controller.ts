@@ -1,41 +1,55 @@
 /* eslint-disable prettier/prettier */
-import {
-  Controller,
-  Post,
-  Body,
-  Delete,
-  Param,
-  UseInterceptors,
-  UploadedFile,
-} from '@nestjs/common';
+// src/admin/admin.controller.ts
+import { Controller, Post, Body, Get, UseGuards, Param } from '@nestjs/common';
 import { AdminService } from './admin.service';
-import { CreateProductDto } from '../products/dto/create-product.dto';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { memoryStorage } from 'multer';
-
+import { RegisterAdminDto } from './dto/register-admin.dto';
+import { LoginAdminDto } from './dto/login-admin.dto';
+import { JwtAuthGuard } from 'src/auth/jwt.auth.guard';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { RolesGuard } from 'src/auth/roles.guard';
+import { Roles } from 'src/auth/roles.decorator';
+@ApiTags('Admins')
 @Controller('admin')
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
-  // ✅ Admin login
+  @Post('register')
+  @ApiOperation({ summary: 'Register a new admin' })
+  @ApiResponse({ status: 201, description: 'Admin registered successfully' })
+  async register(@Body() dto: RegisterAdminDto) {
+    return this.adminService.register(dto);
+  }
+
   @Post('login')
-  login(@Body() body: { email: string; password: string }) {
-    return this.adminService.login(body.email, body.password);
+  @ApiOperation({ summary: 'Admin login' })
+  @ApiResponse({ status: 200, description: 'JWT token' })
+  async login(@Body() dto: LoginAdminDto) {
+    return this.adminService.login(dto);
   }
 
-  // ✅ Add product with image
-  @Post('product')
-  @UseInterceptors(FileInterceptor('image', { storage: memoryStorage() }))
-  addProduct(
-    @Body() dto: CreateProductDto,
-    @UploadedFile() file?: Express.Multer.File,
-  ) {
-    return this.adminService.addProduct(dto, file);
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @ApiBearerAuth()
+  @Get('all')
+  @ApiOperation({ summary: 'Get all admins (JWT-protected)' })
+  async getAllAdmins() {
+    return this.adminService.findAll();
   }
 
-  // ✅ Delete product by ID
-  @Delete('product/:id')
-  deleteProduct(@Param('id') id: string) {
-    return this.adminService.deleteProduct(+id);
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @ApiBearerAuth()
+  @Get(':id')
+  @ApiOperation({ summary: 'Get admin by ID (JWT-protected)' })
+  async getOne(@Param('id') id: number) {
+    return this.adminService.findOne(id);
   }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @ApiBearerAuth()
+  @Post('logout')
+  logout(@Body('token') token: string) {
+  return this.adminService.logout(token);
+ }
 }

@@ -1,12 +1,13 @@
-// src/users/user.entity.ts
+/* eslint-disable prettier/prettier */
+// src/admin/admin.entity.ts
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 
-@Entity('users')
-export class User {
+@Entity('admins')
+export class Admin {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ nullable: true })
+  @Column()
   name: string;
 
   @Column({ unique: true })
@@ -14,9 +15,6 @@ export class User {
 
   @Column()
   password: string;
-
-  @Column({ default: 'user' })
-  role: 'user' | 'admin';
 
   @CreateDateColumn()
   createdAt: Date;

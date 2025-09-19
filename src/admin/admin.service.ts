@@ -1,31 +1,56 @@
 /* eslint-disable prettier/prettier */
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { ProductsService } from '../products/products.service';
-import { CreateProductDto } from '../products/dto/create-product.dto';
-import { Express } from 'express';
+// src/admin/admin.service.ts
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Admin } from './admin.entity';
+import { RegisterAdminDto } from './dto/register-admin.dto';
+import { LoginAdminDto } from './dto/login-admin.dto';
+import * as bcrypt from 'bcrypt';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AdminService {
-  private readonly adminEmail = 'admin@gmail.com';
-  private readonly adminPassword = 'admin123';
+     private blacklist: string[] = []; // Store invalidated tokens
+  constructor(
+    @InjectRepository(Admin)
+    private readonly adminRepo: Repository<Admin>,
+    private readonly jwtService: JwtService,
+  ) {}
 
-  constructor(private readonly productsService: ProductsService) {}
+  async register(dto: RegisterAdminDto): Promise<Admin> {
+    const exists = await this.adminRepo.findOne({ where: { email: dto.email } });
+    if (exists) throw new BadRequestException('Email already exists');
 
-  // ✅ Admin login
-  login(email: string, password: string) {
-    if (email === this.adminEmail && password === this.adminPassword) {
-      return { message: 'Admin login successful' };
-    }
-    throw new UnauthorizedException('Invalid admin credentials');
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    const admin = this.adminRepo.create({ ...dto, password: hashedPassword });
+    return this.adminRepo.save(admin);
   }
 
-  // ✅ Add product
-  addProduct(dto: CreateProductDto, file?: Express.Multer.File) {
-    return this.productsService.create(dto, file);
+  async login(dto: LoginAdminDto): Promise<{ accessToken: string }> {
+    const admin = await this.adminRepo.findOne({ where: { email: dto.email } });
+    if (!admin) throw new NotFoundException('Admin not found');
+
+    const isMatch = await bcrypt.compare(dto.password, admin.password);
+    if (!isMatch) throw new BadRequestException('Invalid credentials');
+
+    const payload = { id: admin.id, email: admin.email, role: 'admin' };
+    return { accessToken: this.jwtService.sign(payload) };
   }
 
-  // ✅ Delete product
-  deleteProduct(id: number) {
-    return this.productsService.remove(id);
+  async findAll(): Promise<Admin[]> {
+    return this.adminRepo.find();
   }
+
+  async findOne(id: number): Promise<Admin> {
+    const admin = await this.adminRepo.findOne({ where: { id } });
+    if (!admin) throw new NotFoundException('Admin not found');
+    return admin;
+  }
+    logout(token: string): { message: string } {
+     this.blacklist.push(token);
+    return { message: 'Admin logged out successfully' };
+}
+    isTokenBlacklisted(token: string): boolean {
+    return this.blacklist.includes(token);}
 }

@@ -1,19 +1,16 @@
 /* eslint-disable prettier/prettier */
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
-import { AuthService } from './auth.service';
-import { AuthController } from './auth.controller';
-import { UsersModule } from '../users/users.module'; // ✅ import UsersModule
+import { JwtAuthGuard } from './jwt.auth.guard';
+
 @Module({
   imports: [
-    UsersModule, // ✅ makes UsersService available
     JwtModule.register({
-      secret: 'MySuperSecretKey123', // ⚠️ move to env later
+      secret: process.env.JWT_SECRET || 'mysecretkey', // Must have a secret
       signOptions: { expiresIn: '1h' },
     }),
   ],
-  providers: [AuthService],
-  controllers: [AuthController],
-  exports: [AuthService],
+  providers: [JwtAuthGuard],
+  exports: [JwtAuthGuard],
 })
 export class AuthModule {}

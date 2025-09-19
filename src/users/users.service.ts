@@ -1,39 +1,49 @@
 /* eslint-disable prettier/prettier */
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User, UserRole } from './user.entity';
-import { CreateUserDto } from './dto/create-user.dto';
+import { User } from './user.entity';
 import * as bcrypt from 'bcrypt';
+import { JwtService } from '@nestjs/jwt';
+import { RegisterUserDto } from './dto/register-user.dto';
+import { LoginUserDto } from './dto/login-user.dto';
 
 @Injectable()
 export class UsersService {
   constructor(
-    @InjectRepository(User) private usersRepo: Repository<User>,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
+    private readonly jwtService: JwtService,
   ) {}
 
-  async createUser(dto: CreateUserDto) {
-    const exists = await this.usersRepo.findOne({ where: { email: dto.email } });
-    if (exists) throw new ConflictException('Email already taken');
+  async register(dto: RegisterUserDto): Promise<User> {
+    const exists = await this.userRepo.findOne({ where: { email: dto.email } });
+    if (exists) throw new BadRequestException('Email already exists');
 
-    const hashed = await bcrypt.hash(dto.password, 10);
-
-    const user = this.usersRepo.create({
-      ...dto,
-      password: hashed,
-      role: dto.email === 'admin@gmail.com' ? UserRole.ADMIN : UserRole.USER,
-    });
-
-    return this.usersRepo.save(user);
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    const user = this.userRepo.create({ ...dto, password: hashedPassword });
+    return this.userRepo.save(user);
   }
 
-  async findByEmail(email: string): Promise<User | null> {
-    return this.usersRepo.findOne({ where: { email } });
+  async login(dto: LoginUserDto): Promise<{ accessToken: string }> {
+    const user = await this.userRepo.findOne({ where: { email: dto.email } });
+    if (!user) throw new NotFoundException('User not found');
+
+    const isMatch = await bcrypt.compare(dto.password, user.password);
+    if (!isMatch) throw new BadRequestException('Invalid credentials');
+
+    const payload = { id: user.id, email: user.email, role: user.role };
+    return { accessToken: this.jwtService.sign(payload) };
   }
 
   async findOne(id: number): Promise<User> {
-    const user = await this.usersRepo.findOne({ where: { id } });
-    if (!user) throw new NotFoundException(`User with id ${id} not found`);
+    const user = await this.userRepo.findOne({ where: { id } });
+    if (!user) throw new NotFoundException('User not found');
     return user;
+  }
+
+  async updateProfile(id: number, data: Partial<User>): Promise<User> {
+    await this.userRepo.update(id, data);
+    return this.findOne(id);
   }
 }
