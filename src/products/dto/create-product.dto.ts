@@ -1,23 +1,34 @@
-/* src/products/dto/create-product.dto.ts */
-import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+/* eslint-disable prettier/prettier */
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsOptional, IsInt, Min } from 'class-validator';
 
 export class CreateProductDto {
+  @ApiProperty()
   @IsString()
-  @IsNotEmpty()
   name: string;
 
-  @IsString()
+  @ApiPropertyOptional()
   @IsOptional()
+  @IsString()
   description?: string;
 
-  @IsString()
-  @IsOptional()
-  category?: string;
-
-  @IsNumber()
+  @ApiProperty({ example: 0 })
+  @IsInt()
+  @Min(0)
   price: number;
 
-  @IsNumber()
+  @ApiPropertyOptional({ example: 'PKR' })
   @IsOptional()
-  stock?: number;
+  @IsString()
+  currency?: string;
+
+  @ApiPropertyOptional({ example: 'clothing' })
+  @IsOptional()
+  @IsString()
+  category?: string;
+
+  @ApiProperty({ example: 0 })
+  @IsInt()
+  @Min(0)
+  stock: number;
 }
